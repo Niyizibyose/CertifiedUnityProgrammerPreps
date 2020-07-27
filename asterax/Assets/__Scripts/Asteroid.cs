@@ -193,6 +193,7 @@ public class Asteroid : MonoBehaviour
             if (otherGO.tag == "Bullet")
             {
                 Destroy(otherGO);
+                AsteraX.AddScore( AsteraX.AsteroidsSO.pointsForAsteroidSize[size] );
             }
 
             if (size > 1)

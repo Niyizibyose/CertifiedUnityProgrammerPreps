@@ -26,9 +26,18 @@ public class PlayerShip : MonoBehaviour
         }
     }
 
+    static public int   JUMPS = 3;
+    static public float	LAST_COLLISION = -1000;
+    static public float COLLISION_DELAY = 1;
+
+
     [Header("Set in Inspector")]
     public float        shipSpeed = 10f;
     public GameObject   bulletPrefab;
+    [Tooltip("The amount of time that the ship disappears during jump/teleport.")]
+    public float        respawnDelay = 2;
+    [Tooltip("The number of Jumps that the ship start the game with.")]
+    public int          startingJumps = 3;
 
     Rigidbody           rigid;
 
@@ -37,6 +46,8 @@ public class PlayerShip : MonoBehaviour
     {
         S = this;
 
+        JUMPS = startingJumps;
+        
         // NOTE: We don't need to check whether or not rigid is null because of [RequireComponent()] above
         rigid = GetComponent<Rigidbody>();
     }
@@ -78,6 +89,62 @@ public class PlayerShip : MonoBehaviour
         go.transform.LookAt(mPos3D);
     }
 
+    void OnCollisionEnter(Collision collision)
+    {
+        Asteroid a = collision.gameObject.GetComponent<Asteroid>();
+        if (a == null) {
+            return;
+        }
+
+        if (Time.time < LAST_COLLISION + COLLISION_DELAY) {
+            return;
+        } else {
+            LAST_COLLISION = Time.time;
+        }
+
+        JUMPS--;
+        if (JUMPS < 0) {
+            gameObject.SetActive(false);
+            AsteraX.GameOver();
+            return;
+        }
+
+        // Respawn in a new location
+        Respawn();
+    }
+
+    void Respawn() {
+#if DEBUG_PlayerShip_RespawnNotifications
+        Debug.Log("PlayerShip:Respawn()");
+#endif
+        StartCoroutine(AsteraX.FindRespawnPointCoroutine(transform.position, RespawnCallback)); 
+
+        // Initially, I had made the gameObject inactive, but this caused the 
+        //  coroutine called above to never return from yield!
+        //gameObject.SetActive(false);
+
+        // Now, instead, I turn off the OffScreenWrapper and move the GameObject 
+        // outside the play area until  RespawnCallback is called.
+        OffScreenWrapper wrapper = GetComponent<OffScreenWrapper>();
+        if (wrapper != null) {
+            wrapper.enabled = false;
+        }
+        transform.position = new Vector3(10000,10000,0);
+    }
+
+    void RespawnCallback(Vector3 newPos) {
+#if DEBUG_PlayerShip_RespawnNotifications
+        Debug.Log("PlayerShip:RespawnCallback( "+newPos+" )");
+#endif
+        transform.position = newPos;
+
+        OffScreenWrapper wrapper = GetComponent<OffScreenWrapper>();
+        if (wrapper != null) {
+            wrapper.enabled = true;
+        }
+    }
+
+
     static public float MAX_SPEED
     {
         get
@@ -93,4 +160,13 @@ public class PlayerShip : MonoBehaviour
             return S.transform.position;
         }
     }
+
+    static public float RESPAWN_DELAY
+    {
+        get
+        {
+            return S.respawnDelay;
+        }
+    }
+
 }
